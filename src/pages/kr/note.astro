@@ -1,0 +1,39 @@
+---
+import { translations } from '../../i18n/translation';
+import '../../styles/global.css';
+import type { Locale } from '../../i18n/translation';
+import MaxWidthWrapper from '../../components/MaxWidthWrapper.astro';
+import Layout from '../../layouts/Layout.astro';
+import Navigation from '../../components/Navigation.astro';
+import { getMenu } from '../../utils/get/menu';
+import Computer3D from '../../components/Computer3D';
+
+const currentLocale: Locale = 'kr';
+const t = translations[currentLocale].note;
+const menuItems = getMenu(currentLocale);
+---
+
+<Layout>
+  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
+  <MaxWidthWrapper>
+    <header
+      id="frontend-header"
+      class="flex-5/12 pt-12 static pl-4 pr-4 h-fit top-14"
+    >
+      <p class="text-custom-text font-bold text-5xl pb-4">{t.title}</p>
+      <div class="flex flex-row">
+        <div class="w-full flex items-center justify-between mb-2 rounded-xl">
+          <div class="flex flex-row items-center gap-4">
+            <Computer3D client:load />
+            <p class="text-custom-text font-bold text-xl">개발자 블로그</p>
+          </div>
+        </div>
+      </div>
+      <div class="pb-4">
+        <p class="text-custom-text">{t.description}</p>
+        <!-- <p>I craft the web to bring data and</p>
+          <p>user experiences to life.</p> -->
+      </div>
+    </header>
+  </MaxWidthWrapper>
+</Layout>

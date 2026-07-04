@@ -1,0 +1,254 @@
+/* 개선된 타이포그래피 */
+
+.admonition {
+  color: rgb(var(--color-text));
+}
+
+.admonition.warning {
+  color: rgb(var(--color-primary));
+}
+
+.admonition.note {
+  color: #ef4444;
+}
+
+.prose h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  color: rgb(var(--color-text-primary));
+}
+
+.prose h2 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: rgb(var(--color-text));
+  border-bottom: 2px solid rgb(var(--color-border));
+  padding-bottom: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.prose h2:hover {
+  color: rgb(var(--color-text-primary));
+}
+
+.prose h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: rgb(var(--color-text-secondary));
+}
+
+.prose h3:first-of-type {
+  margin-top: 0;
+}
+
+.prose h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: rgb(var(--color-text-secondary));
+}
+
+/* 이미지 스타일링 */
+.prose img {
+  margin: 1.5rem auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  height: auto;
+}
+
+/* 링크 스타일링 */
+.prose a {
+  color: #447dfc;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.prose a:hover {
+  color: #447dfc;
+  border-bottom-color: #4073e6;
+}
+
+/* 인용문 스타일링 */
+.prose blockquote {
+  background: rgba(var(--color-background-secondary), 0.4);
+  padding: 1.5rem 2rem;
+  border-left: 4px solid rgb(var(--color-primary));
+  border-radius: 0.5rem;
+  margin: 2rem 0;
+  font-style: italic;
+  color: rgb(var(--color-text));
+  position: relative;
+}
+
+.prose blockquote::before {
+  content: '"';
+  font-size: 4rem;
+  color: rgb(var(--color-primary));
+  position: absolute;
+  top: -0.5rem;
+  left: 0.5rem;
+  opacity: 0.3;
+}
+
+/* 코드 블록 스타일링 */
+.prose pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border: 1px solid #334155;
+}
+
+.prose code {
+  background: rgba(var(--color-background-secondary), 0.8);
+  color: #e11d48;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.prose pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* 목록 스타일링 */
+.prose ul,
+.prose ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.prose li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+/* 표 스타일링 */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.prose th,
+.prose td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(var(--color-border), 0.3);
+}
+
+.prose th {
+  background: rgba(var(--color-background-secondary), 0.8);
+  font-weight: 600;
+  color: rgb(var(--color-text));
+}
+
+/* 다크 모드 지원 */
+:where(.dark, .dark *) {
+  h1 {
+    color: rgb(var(--color-text-primary));
+  }
+
+  h2 {
+    color: rgb(var(--color-text));
+    border-bottom-color: rgba(var(--color-border), 0.5);
+  }
+
+  h2:hover {
+    color: rgb(var(--color-text-primary));
+  }
+
+  h3 {
+    color: rgb(var(--color-text));
+  }
+
+  h4 {
+    color: rgb(var(--color-text-secondary));
+  }
+
+  blockquote {
+    background: rgba(var(--color-background-secondary), 0.6);
+    color: rgb(var(--color-text));
+  }
+
+  code {
+    background: rgba(var(--color-background-secondary), 0.9);
+    color: #fbbf24;
+  }
+
+  th {
+    background: rgba(var(--color-background-secondary), 0.9);
+    color: rgb(var(--color-text));
+  }
+
+  th,
+  td {
+    border-bottom-color: rgba(var(--color-border), 0.6);
+  }
+}
+
+/* 반응형 개선 */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  blockquote {
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+
+  pre {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .graph-tooltip {
+    transform: translate(-80px, -40px);
+  }
+}
+
+@media (min-width: 1280px) {
+  /* xl 이상 */
+  .graph-tooltip {
+    transform: translate(-140px, -40px);
+  }
+}
+
+@media (min-width: 1536px) {
+  /* 2xl 이상 */
+  .graph-tooltip {
+    transform: translate(-200px, -40px);
+  }
+}

@@ -1,0 +1,46 @@
+---
+import "../styles/global.css";
+// import type { DarkMode } from "../types/app";
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> -->
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <script>
+      try {
+        const stored = localStorage.getItem("app-storage");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const mode = parsed?.state?.darkMode;
+          if (mode === "dark") {
+            document.documentElement.classList.remove("light");
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.add("light");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse stored dark mode:", error);
+      }
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-custom-background">
+    <div>
+      <main>
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

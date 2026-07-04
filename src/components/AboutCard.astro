@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+const { type, name, date, career, description, link } = Astro.props;
+---
+
+<a href={link} target="_blank">
+  <div
+    class="text-custom-text w-full flex flex-row p-4 rounded-2xl hover:bg-custom-background-secondary transition-colors"
+    style="transition-duration: var(--hover-out-duration, 0.3s);"
+  >
+    <div class="flex-1/4 text-zinc-400 text-sm">
+      {date}
+    </div>
+    <div class="flex-3/4 flex flex-col">
+      <div class="pb-2">
+        {type === 'company' ?
+        <span>{career} · </span>
+        <span>{name}</span> :
+        <span>{career}</span>
+        <span>{name}</span>
+        }
+      </div>
+      <div class="text-sm">
+        {description}
+      </div>
+    </div>
+  </div>
+</a>
+
+<style>
+  div {
+    --hover-out-duration: 0.2s;
+  }
+  
+  div:hover {
+    transition-duration: 0s;
+  }
+</style>

@@ -1,0 +1,21 @@
+---
+import "../styles/global.css";
+import MobileNavigation from "./MobileNavigation.tsx";
+import DesktopNavigation from "./DesktopNavigation.tsx";
+import type { Locale } from "../i18n/translation.ts";
+
+const { menuItems, currentLocale } = Astro.props;
+---
+
+<>
+  <DesktopNavigation
+    client:load
+    menuItems={menuItems}
+    currentLocale={currentLocale}
+  />
+  <MobileNavigation
+    client:load
+    menuItems={menuItems}
+    currentLocale={currentLocale}
+  />
+</>

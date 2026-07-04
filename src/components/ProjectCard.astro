@@ -1,0 +1,60 @@
+---
+import '../styles/global.css';
+
+type Props = {
+  title: string;
+  description: string;
+  thumbnail: string;
+  link: string;
+  tags?: string[];
+};
+
+const { title, description, thumbnail, link, tags = [] } = Astro.props;
+---
+
+<a href={link} class="block group">
+  <div
+    class="--color-custom-background border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden transition-all duration-300 hover:bg-custom-background-secondary hover:shadow-lg hover:-translate-y-1 h-full min-h-[400px] flex flex-col p-4"
+  >
+    <!-- 썸네일 이미지 -->
+    <div class="w-full aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+      <img
+        src={thumbnail}
+        alt={title}
+        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        loading="lazy"
+      />
+    </div>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="pt-5 flex-1 flex flex-col gap-3">
+      <!-- 제목 -->
+      <h3
+        class="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight"
+      >
+        {title}
+      </h3>
+
+      <!-- 설명 -->
+      <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 flex-1">
+        {description}
+      </p>
+
+      <!-- 태그 -->
+      {
+        tags.length > 0 && (
+          <div class="pt-3 border-t border-gray-100 dark:border-gray-700">
+            <div class="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span class="px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </div>
+  </div>
+</a>
+

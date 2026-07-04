@@ -1,0 +1,52 @@
+---
+import '../../styles/global.css';
+import { translations, type Locale } from '../../i18n/translation';
+import { getMenu } from '../../utils/get/menu';
+import MaxWidthWrapper from '../../components/MaxWidthWrapper.astro';
+import Layout from '../../layouts/Layout.astro';
+import Navigation from '../../components/Navigation.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import Nightstand3D from '../../components/Nightstand3D';
+
+const currentLocale: Locale = 'cn';
+const menuItems = getMenu(currentLocale);
+const t = translations[currentLocale].project;
+---
+
+<Layout>
+  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
+  <MaxWidthWrapper>
+    <header
+    id="frontend-header"
+    class="flex-5/12 pt-12 static pl-4 pr-4 h-fit top-14"
+  >
+    <p class="text-custom-text font-bold text-5xl pb-4">
+      {t.name}
+    </p>
+    <div class="flex flex-row">
+      <div class="w-full flex items-center justify-between mb-2 rounded-xl">
+        <div class="flex flex-row items-center gap-4">
+          <Nightstand3D client:load />
+          <p class="text-custom-text font-bold text-xl">Design & Development Works</p>
+        </div>
+      </div>
+    </div>
+    <div class="pb-4">
+      <p class="text-custom-text">
+        {t.description}
+      </p>
+    </div>
+  </header>
+  <div class="flex-7/12 flex flex-col gap-4 pt-12 pb-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ProjectCard
+          title="樱花树 (Cherry Tree)"
+          description="使用 Three.js 创建的交互式 3D 樱花树模拟。使用 GLSL 着色器实现了风效果和花瓣动画。"
+          thumbnail="/project-cherry-tree/thumbnail.png"
+          link="/projects/cherry-tree"
+          tags={['Three.js', 'TypeScript', 'GLSL']}
+        />
+      </div>
+    </div>
+  </MaxWidthWrapper>
+</Layout>

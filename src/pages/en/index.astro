@@ -1,0 +1,18 @@
+---
+import '../../styles/global.css';
+import type { Locale } from '../../i18n/translation';
+import MaxWidthWrapper from '../../components/MaxWidthWrapper.astro';
+import Layout from '../../layouts/Layout.astro';
+import Navigation from '../../components/Navigation.astro';
+import { getMenu } from '../../utils/get/menu';
+
+const currentLocale: Locale = 'en';
+const menuItems = getMenu(currentLocale);
+---
+
+<Layout>
+  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
+  <MaxWidthWrapper>
+    <h1 class="text-custom-text">English</h1>
+  </MaxWidthWrapper>
+</Layout>

@@ -1,0 +1,14 @@
+---
+// 서버/빌드 시점에 리디렉션 (meta refresh보다 빠름)
+return Astro.redirect("/kr/", 302);
+---
+
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0;url=/kr/" />
+  </head>
+  <body>
+    <p>리디렉션 중...</p>
+  </body>
+</html>

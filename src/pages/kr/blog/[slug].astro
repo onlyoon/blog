@@ -1,0 +1,150 @@
+---
+import "../../../styles/global.css";
+import "../../../styles/post.css";
+import MaxWidthWrapper from "../../../components/MaxWidthWrapper.astro";
+import Navigation from "../../../components/Navigation.astro";
+import Layout from "../../../layouts/Layout.astro";
+import { getCollection, render } from "astro:content";
+import { getMenu } from "../../../utils/get/menu";
+import type { Locale } from "../../../i18n/translation";
+
+const currentLocale: Locale = "kr";
+const menuItems = getMenu(currentLocale);
+
+export async function getStaticPaths() {
+  const blogEntries = await getCollection("blog");
+
+  return blogEntries.map((entry) => ({
+    params: { slug: entry.id.replace(/\.(md|mdx)$/, "") },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { data, body } = entry;
+const { title, pubDate, description, thumbnail, category } = data;
+
+// 읽기 시간 계산
+const calculateReadingTime = (content: string) => {
+  const wordsPerMinute = 200;
+  const wordCount = content.split(/\s+/).length;
+  return Math.ceil(wordCount / wordsPerMinute);
+};
+
+const readingTime = calculateReadingTime(body || description || "");
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+};
+
+type CategoryType = "tutorial" | "news" | "project" | "tips" | "react";
+const categoryStr = category as CategoryType;
+
+const categoryMap: Record<string, string> = {
+  tutorial: "튜토리얼",
+  news: "뉴스",
+  project: "프로젝트",
+  tips: "팁",
+  react: "React",
+};
+
+// 카테고리 색상 매핑
+const getCategoryColor = (category: CategoryType) => {
+  const colors: Record<CategoryType, string> = {
+    tutorial:
+      "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
+    news: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
+    project:
+      "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700",
+    tips: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
+    react:
+      "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+  };
+  return (
+    colors[category] ||
+    "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600"
+  );
+};
+
+// 마크다운 콘텐츠를 HTML로 변환
+const { Content } = await render(entry);
+---
+
+<Layout title={`${title} | yoonlog.dev`} description={description}>
+  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
+
+  <MaxWidthWrapper>
+    <!-- 블로그 포스트 -->
+    <article>
+      <div class="pt-8">
+        <!-- 헤더: 카테고리, 날짜 -->
+        <!-- 제목 -->
+        <h1
+          class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6 leading-tight"
+        >
+          {title}
+        </h1>
+        <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
+          <div class="flex items-center gap-3">
+            <span
+              class={`px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(categoryStr)}`}
+            >
+              {categoryMap[categoryStr] || category}
+            </span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {formatDate(pubDate)}
+            </span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              약 {readingTime}분 읽기
+            </span>
+          </div>
+        </div>
+
+        <!-- 설명 -->
+        <p
+          class="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed"
+        >
+          {description}
+        </p>
+        <!-- 썸네일 이미지 -->
+        {
+          thumbnail && (
+            <div class="w-full aspect-video overflow-hidden">
+              <img
+                src={thumbnail}
+                alt={title}
+                class="w-full h-full object-cover"
+              />
+            </div>
+          )
+        }
+        <!-- 구분선 -->
+        <!-- <div class="border-t border-gray-200 dark:border-gray-700"></div> -->
+
+        <!-- 마크다운 콘텐츠 -->
+        <div class="prose prose-lg max-w-none">
+          <!-- <div
+          class="prose prose-lg dark:prose-invert max-w-none
+            prose-gray dark:prose-slate
+            prose-headings:text-gray-900 dark:prose-headings:text-gray-100"
+        > -->
+          <Content />
+        </div>
+      </div>
+    </article>
+
+    <!-- 관련 포스트 섹션 (선택사항) -->
+    <div class="mt-16">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-8">
+        다른 포스트
+      </h2>
+      <div class="text-center text-gray-500 dark:text-gray-400">
+        <p>관련 포스트 기능은 추후 추가될 예정입니다.</p>
+      </div>
+    </div>
+  </MaxWidthWrapper>
+</Layout>

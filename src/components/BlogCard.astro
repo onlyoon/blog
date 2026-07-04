@@ -1,0 +1,112 @@
+---
+import type { CollectionEntry } from "astro:content";
+
+type Props = { entry: CollectionEntry<"blog"> };
+
+const { entry } = Astro.props;
+const { data, id, body } = entry;
+const slug = id.replace(/\.(md|mdx)$/, "");
+const { title, pubDate, description, thumbnail, category } = data;
+
+// 읽기 시간 계산 (평균 200단어/분)
+const readingTime = calculateReadingTime(body || description || "");
+
+type CategoryType = "tutorial" | "news" | "project" | "tips" | "react";
+const categoryStr = category as CategoryType;
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+};
+
+const categoryMap: Record<string, string> = {
+  tutorial: "튜토리얼",
+  news: "뉴스",
+  project: "프로젝트",
+  tips: "팁",
+  react: "React",
+};
+
+// 읽기 시간 계산 (평균 200단어/분)
+function calculateReadingTime(content: string) {
+  const wordsPerMinute = 200;
+  const wordCount = content.split(/\s+/).length;
+  const readingTime = Math.ceil(wordCount / wordsPerMinute);
+  return readingTime;
+}
+
+// 카테고리 색상 매핑 (Tailwind CSS classes)
+const getCategoryColor = (category: CategoryType) => {
+  const colors: Record<CategoryType, string> = {
+    tutorial:
+      "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
+    news: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
+    project:
+      "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700",
+    tips: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
+    react:
+      "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+  };
+  return (
+    colors[category] ||
+    "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600"
+  );
+};
+---
+
+<a href={`/kr/blog/${slug}`} class="block group">
+  <div
+    class="--color-custom-background border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden transition-all duration-300 hover:bg-custom-background-secondary hover:shadow-lg hover:-translate-y-1 h-full min-h-[400px] flex flex-col p-4"
+  >
+    <!-- 썸네일 이미지 -->
+    {
+      thumbnail && (
+        <div class="w-full aspect-video rounded-lg overflow-hidden">
+          <img
+            src={thumbnail}
+            alt={title}
+            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        </div>
+      )
+    }
+
+    <!-- 메인 콘텐츠 -->
+    <div class="pt-5 flex-1 flex flex-col gap-3">
+      <!-- 헤더: 카테고리, 날짜 -->
+      <div class="flex justify-between items-center gap-3">
+        <span
+          class={`px-3 py-1 rounded-full text-xs font-medium border ${getCategoryColor(categoryStr)}`}
+        >
+          {categoryMap[categoryStr] || category}
+        </span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {formatDate(pubDate)}
+        </span>
+      </div>
+
+      <!-- 제목 -->
+      <h3
+        class="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight"
+      >
+        {title}
+      </h3>
+
+      <!-- 설명 -->
+      <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 flex-1">
+        {description}
+      </p>
+
+      <!-- 읽기 시간 -->
+      <div class="pt-3 border-t border-gray-100 dark:border-gray-700">
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          약 {readingTime}분 읽기
+        </span>
+      </div>
+    </div>
+  </div>
+</a>

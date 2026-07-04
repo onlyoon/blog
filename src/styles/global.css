@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2")
+    format("woff2");
+  font-weight: 100;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraLight.woff2")
+    format("woff2");
+  font-weight: 200;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2")
+    format("woff2");
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2")
+    format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2")
+    format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2")
+    format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Black.woff2")
+    format("woff2");
+  font-weight: 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GmarketSansMedium";
+  src: url("https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff")
+    format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Noto Sans SC";
+  src: url("https://fonts.gstatic.com/s/notosanssc/v27/k3kJo84MPvpLmixcA63oeALZTYKLz0bM.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root.light {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family:
+    "Pretendard", "GmarketSansMedium", "Noto Sans SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+@theme {
+  --color-custom-primary: rgb(var(--color-primary));
+  --color-custom-secondary: rgb(var(--color-secondary));
+  --color-custom-background: rgb(var(--color-background));
+  --color-custom-background-secondary: rgb(var(--color-background-secondary));
+  --color-custom-text: rgb(var(--color-text));
+  --color-custom-text-primary: rgb(var(--color-text-primary));
+  --color-custom-text-secondary: rgb(var(--color-text-secondary));
+  --color-custom-border: rgb(var(--color-border));
+}
+
+.light {
+  /* 라이트 모드 색상 */
+  --color-primary: 59 130 246; /* blue-500 */
+  --color-secondary: 139 92 246; /* violet-500 */
+  --color-background: 255 255 255; /* white */
+  --color-background-secondary: 229 229 229; /* gray-200 */
+  --color-text: 17 24 39; /* gray-900 */
+  --color-text-primary: 17 24 39;
+  --color-text-secondary: 107 114 128; /* gray-500 */
+  --color-border: 229 229 229; /* gray-200 */
+}
+
+.dark {
+  /* 다크 모드 색상 */
+  --color-primary: 96 165 250; /* blue-400 */
+  --color-secondary: 167 139 250; /* violet-400 */
+  --color-background: 18 18 18; /* gray-900 */
+  --color-background-secondary: 24 24 27; /* gray-800 */
+  --color-text: 255 255 255; /* white */
+  --color-text-primary: 255 255 255;
+  --color-text-secondary: 156 163 175; /* gray-400 */
+  --color-border: 55 65 81; /* gray-700 */
+}

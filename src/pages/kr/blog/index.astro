@@ -1,0 +1,60 @@
+---
+import { getCollection } from "astro:content";
+
+import { translations } from "../../../i18n/translation";
+import "../../../styles/global.css";
+import type { Locale } from "../../../i18n/translation";
+import MaxWidthWrapper from "../../../components/MaxWidthWrapper.astro";
+import Layout from "../../../layouts/Layout.astro";
+import Navigation from "../../../components/Navigation.astro";
+import { getMenu } from "../../../utils/get/menu";
+import BlogCard from "../../../components/BlogCard.astro";
+import Computer3D from "../../../components/Computer3D";
+
+const currentLocale: Locale = "kr";
+const t = translations[currentLocale].blog;
+const menuItems = getMenu(currentLocale);
+
+const posts = await getCollection("blog");
+
+const sortedPosts = posts.sort((a, b) => {
+  return b.data.pubDate.getTime() - a.data.pubDate.getTime();
+});
+---
+
+<Layout>
+  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
+  <MaxWidthWrapper className="flex flex-col h-fit">
+    <!-- <div class="flex pt-12 h-fit"> -->
+    <header
+      id="frontend-header"
+      class="flex-5/12 pt-12 static pl-4 pr-4 h-fit top-14"
+    >
+      <p class="text-custom-text font-bold text-5xl pb-4">{t.title}</p>
+      <div class="flex flex-row">
+        <div class="w-full flex items-center justify-between mb-2 rounded-xl">
+          <div class="flex flex-row items-center gap-4">
+            <Computer3D client:load />
+            <p class="text-custom-text font-bold text-xl">개발자 블로그</p>
+          </div>
+        </div>
+      </div>
+      <div class="pb-4">
+        <p class="text-custom-text">{t.description}</p>
+        <!-- <p>I craft the web to bring data and</p>
+          <p>user experiences to life.</p> -->
+      </div>
+    </header>
+    <div class="flex-7/12 flex flex-col gap-4 pt-12 pb-12">
+      <!-- <div id="blog-title" class="flex flex-col gap-4 pb-4">
+        <p class="text-custom-text font-bold text-2xl pl-4 pr-4">{t.title}</p>
+      </div> -->
+      <div
+        id="blog-posts"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4"
+      >
+        {sortedPosts.map((post) => <BlogCard entry={post} />)}
+      </div>
+    </div>
+  </MaxWidthWrapper>
+</Layout>
