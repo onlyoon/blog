@@ -2,7 +2,7 @@ import { OrthographicCamera, PerspectiveCamera } from 'three';
 
 export function createPerspectiveCamera() {
   const camera = new PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 25);
-  camera.position.set(3, 0.1, 5);
+  camera.position.set(3.5, 1.5, 5.0); // Raised camera height (Y) from 0.1 to 1.5 for a natural eye-level view
   camera.lookAt(0, 0, 0);
   return camera;
 }

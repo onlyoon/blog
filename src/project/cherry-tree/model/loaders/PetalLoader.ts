@@ -1,6 +1,6 @@
-import { Vector3, Object3D, Mesh, ShaderMaterial, type Scene } from 'three';
+import { Vector3, Object3D, Mesh, ShaderMaterial, InstancedMesh, DynamicDrawUsage, InstancedBufferAttribute, Matrix4, Quaternion, Euler, type Scene } from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
-import { applyPetalShader, updatePetalShader } from '../../shader/petal/petalShaderSetup';
+import petalFragmentShader from '../../shader/petal/petalFragment.glsl.ts';
 
 export interface PetalSpeed {
   x: number;
@@ -23,14 +23,51 @@ export interface PetalConfig {
   speedRange?: number;
 }
 
+interface PetalState {
+  position: Vector3;
+  initialPos: Vector3;
+  speed: PetalSpeed;
+  rotSpeed: RotationSpeed;
+  rotation: { x: number; y: number; z: number };
+  scale: number;
+  isGrounded: boolean;
+  groundedTime: number;
+  randomValue: number;
+}
+
+// Local vertex shader supporting GPU Instancing
+const instancedPetalVertexShader = `
+uniform float u_time;
+uniform float u_windStrength;
+varying vec2 vUv;
+attribute float randomValue;
+
+void main() {
+  vUv = uv;
+  vec3 pos = position;
+  float windEffect = sin(u_time * 0.5 + randomValue * 10.0) * u_windStrength;
+  pos.x += windEffect * 0.1;
+  pos.z += cos(u_time * 0.3 + randomValue * 5.0) * u_windStrength * 0.05;
+  
+  // Multiply by instanceMatrix for GPU Instancing
+  vec4 worldPosition = modelMatrix * instanceMatrix * vec4(pos, 1.0);
+  gl_Position = projectionMatrix * viewMatrix * worldPosition;
+}
+`;
+
 export class PetalLoader {
   private scene: Scene;
   private loader: GLTFLoader;
-  private rotationSpeeds: RotationSpeed[] = [];
-  private initialPositions: Vector3[] = [];
-  private petalMaterials: ShaderMaterial[] = [];
-  private isGrounded: boolean[] = []; // 바닥에 착지했는지 추적
-  private groundedTime: number[] = []; // 착지한 시간 기록
+  private petalsArray: PetalState[] = [];
+  private instancedMesh: InstancedMesh | null = null;
+  private material: ShaderMaterial | null = null;
+
+  // Reusable math objects to eliminate garbage collection (GC) pressure in the animation loop
+  private _transformMatrix = new Matrix4();
+  private _positionVec = new Vector3();
+  private _rotationQuat = new Quaternion();
+  private _scaleVec = new Vector3();
+  private _rotationEuler = new Euler();
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -40,79 +77,92 @@ export class PetalLoader {
   async loadPetals(config: PetalConfig): Promise<{ models: Object3D[]; speeds: PetalSpeed[] }> {
     const {
       modelUrl,
-      count = 25,
-      centerPosition = new Vector3(-2, 3, -3),
-      spreadRange = { x: 1, y: 2, z: 1 },
+      count = 1000,
+      centerPosition = new Vector3(0, 2, 0),
+      spreadRange = { x: 2, y: 1, z: 2 },
       scale = 0.1,
-      speedRange = 0.05,
+      speedRange = 0.01,
     } = config;
 
     return new Promise((resolve, reject) => {
       this.loader.load(
         modelUrl,
         (gltf: GLTF) => {
-          const basePetal = gltf.scene.children[0];
-          const petals: Object3D[] = [];
-          const speeds: PetalSpeed[] = [];
+          let baseMesh: Mesh | null = null;
+          gltf.scene.traverse(obj => {
+            if ((obj as Mesh).isMesh) {
+              baseMesh = obj as Mesh;
+            }
+          });
 
-          for (let i = 0; i < count; i++) {
-            const petal = basePetal.clone();
-
-            // 랜덤 위치 설정
-            const initialPos = new Vector3(
-              centerPosition.x + (Math.random() * 2 - 1) * spreadRange.x,
-              centerPosition.y + Math.random() * spreadRange.y,
-              centerPosition.z + (Math.random() * 2 - 1) * spreadRange.z,
-            );
-            petal.position.copy(initialPos);
-
-            petal.scale.setScalar(scale);
-
-            // 랜덤 값 생성 (색상 선택용)
-            const randomValue = Math.random();
-
-            // 셰이더 적용
-            petal.traverse(obj => {
-              if ((obj as Mesh).isMesh) {
-                const mesh = obj as Mesh;
-                mesh.castShadow = true;
-
-                // GLSL 셰이더 재질 적용
-                const material = applyPetalShader(mesh, randomValue);
-                this.petalMaterials.push(material);
-              }
-            });
-
-            this.scene.add(petal);
-            petals.push(petal);
-
-            // 초기 위치 저장
-            this.initialPositions.push(initialPos.clone());
-
-            // 랜덤 속도 생성 (y는 항상 아래로)
-            speeds.push({
-              x: (Math.random() - 0.5) * speedRange,
-              y: -Math.random() * speedRange * 0.5, // 항상 아래로
-              z: (Math.random() - 0.5) * speedRange,
-            });
-
-            // 랜덤 회전 속도 생성
-            this.rotationSpeeds.push({
-              x: (Math.random() - 0.5) * 0.02,
-              y: (Math.random() - 0.5) * 0.02,
-              z: (Math.random() - 0.5) * 0.02,
-            });
-
-            // 착지 상태 초기화
-            this.isGrounded.push(false);
-            this.groundedTime.push(0);
+          if (!baseMesh) {
+            reject(new Error("No mesh found in GLTF"));
+            return;
           }
 
-          console.log(`✓ ${count}개의 꽃잎 생성 완료`);
-          resolve({ models: petals, speeds });
+          const geometry = baseMesh.geometry.clone();
+          const randomValues = new Float32Array(count);
+          this.petalsArray = [];
+
+          for (let i = 0; i < count; i++) {
+            const randomValue = Math.random();
+            randomValues[i] = randomValue;
+
+            const initialPos = new Vector3(
+              centerPosition.x + (Math.random() * 2 - 1) * spreadRange.x,
+              Math.random() * 12.0, // Stagger initial Y coordinates from 0 to 12 to seed the scene with higher initial density (approx. 400 petals visible)
+              centerPosition.z + (Math.random() * 2 - 1) * spreadRange.z
+            );
+
+            this.petalsArray.push({
+              position: initialPos.clone(),
+              initialPos,
+              speed: {
+                x: (Math.random() - 0.5) * speedRange * 2.0,
+                y: -(0.005 + Math.random() * speedRange * 1.5), // always falling down
+                z: (Math.random() - 0.5) * speedRange * 2.0,
+              },
+              rotSpeed: {
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02,
+              },
+              rotation: {
+                x: Math.random() * Math.PI,
+                y: Math.random() * Math.PI,
+                z: Math.random() * Math.PI,
+              },
+              scale: scale * (0.8 + Math.random() * 0.4),
+              isGrounded: false,
+              groundedTime: 0,
+              randomValue,
+            });
+          }
+
+          geometry.setAttribute('randomValue', new InstancedBufferAttribute(randomValues, 1));
+
+          this.material = new ShaderMaterial({
+            uniforms: {
+              u_time: { value: 0.0 },
+              u_windStrength: { value: 3.0 }, // sway/turbulence is 3.0
+            },
+            vertexShader: instancedPetalVertexShader,
+            fragmentShader: petalFragmentShader,
+          });
+
+          this.instancedMesh = new InstancedMesh(geometry, this.material, count);
+          this.instancedMesh.instanceMatrix.setUsage(DynamicDrawUsage);
+          this.instancedMesh.castShadow = true;
+          this.instancedMesh.receiveShadow = true;
+          this.instancedMesh.frustumCulled = false;
+
+          this.scene.add(this.instancedMesh);
+
+          // Return the InstancedMesh wrapped in an array to avoid breaking method signature
+          resolve({ models: [this.instancedMesh], speeds: [] });
         },
         undefined,
-        reject,
+        reject
       );
     });
   }
@@ -121,97 +171,93 @@ export class PetalLoader {
     petals: Object3D[],
     speeds: PetalSpeed[],
     time: number,
-    bounds?: {
-      min: Vector3;
-      max: Vector3;
-    },
+    bounds?: { min: Vector3; max: Vector3 }
   ): void {
-    // 모든 셰이더의 시간 업데이트
-    this.petalMaterials.forEach(material => {
-      updatePetalShader(material, time);
-    });
+    if (!this.instancedMesh || this.petalsArray.length === 0) return;
 
-    petals.forEach((petal, index) => {
-      // 바닥에 착지한 꽃잎 체크
-      if (this.isGrounded[index]) {
-        // 착지 후 2초가 지났는지 확인
-        if (time - this.groundedTime[index] >= 2.0) {
-          // 2초 지나면 다시 리셋
+    if (this.material) {
+      this.material.uniforms.u_time.value = time;
+    }
+
+    const gravity = 0.5; // gravity is 0.5
+    const sway = 3.0;    // sway/turbulence is 3.0
+
+    const len = this.petalsArray.length;
+    for (let idx = 0; idx < len; idx++) {
+      const p = this.petalsArray[idx];
+
+      if (p.isGrounded) {
+        if (time - p.groundedTime >= 2.0) {
           if (bounds) {
-            const newInitialPos = new Vector3(
+            p.position.set(
               bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
               bounds.max.y,
-              bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z),
+              bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
             );
-            petal.position.copy(newInitialPos);
-            this.initialPositions[index].copy(newInitialPos);
-            this.isGrounded[index] = false; // 다시 떨어지는 상태로
-            this.groundedTime[index] = 0;
+            p.initialPos.copy(p.position);
+            p.isGrounded = false;
+            p.groundedTime = 0;
           }
         }
-        return; // 착지한 상태면 움직임 멈춤
-      }
+      } else {
+        // Falling physics matching gravity
+        p.position.y += p.speed.y * gravity;
+        
+        // Gentle Z wind direction (+Z towards camera, but subtle to prevent flying up illusion)
+        p.position.z += 0.015;
+        
+        // Sway based on sway/turbulence
+        p.position.x += Math.sin(time * 0.5 * sway + p.randomValue * 10.0) * p.speed.x * sway * 0.5;
+        p.position.z += Math.cos(time * 0.3 * sway + p.randomValue * 5.0) * p.speed.z * sway * 0.5;
 
-      const speed = speeds[index];
-      const rotSpeed = this.rotationSpeeds[index];
-      const initialPos = this.initialPositions[index];
+        // Rotation
+        p.rotation.x += p.rotSpeed.x * sway;
+        p.rotation.y += p.rotSpeed.y * sway;
+        p.rotation.z += p.rotSpeed.z * sway;
 
-      // 시간 기반 좌우 흔들림 (사인파)
-      petal.position.x = initialPos.x + Math.sin(time * 0.5 + index) * speed.x * 30;
+        // Reset check if they go out of the ground boundary or too far forward
+        const groundXRange = 10.0;
+        const groundZRange = 10.0;
+        const outOfX = p.position.x < -groundXRange || p.position.x > groundXRange;
+        const outOfZ = p.position.z < -groundZRange || p.position.z > (bounds ? bounds.max.z + 10.0 : groundZRange);
 
-      // 아래로 떨어지면서 약간의 상하 흔들림
-      petal.position.y += Math.cos(time * 0.3 + index) * 0.005 + speed.y;
-
-      // 앞뒤 흔들림
-      petal.position.z += (Math.sin((time + index) * 0.4) + 1) * Math.abs(speed.z) * 0.5;
-
-      // 자연스러운 회전 (시간에 따라 변화)
-      petal.rotation.x += rotSpeed.x * Math.sin(time * 0.5) + (Math.random() * 0.01 - 0.005);
-      petal.rotation.y += rotSpeed.y * Math.cos(time * 0.3) + (Math.random() * 0.01 - 0.005);
-      petal.rotation.z += rotSpeed.z * Math.sin(time * 0.7) + (Math.random() * 0.01 - 0.005);
-
-      // 가끔 회전 방향 전환 (0.1% 확률)
-      if (Math.random() < 0.001) {
-        this.rotationSpeeds[index].x *= -1;
-        this.rotationSpeeds[index].y *= -1;
-        this.rotationSpeeds[index].z *= -1;
-      }
-
-      // 바닥 범위 벗어남 체크 (20x20 ground 기준: x, z 범위 -10~10)
-      const groundXRange = 10;
-      const groundZRange = 10;
-
-      if (
-        petal.position.x < -groundXRange ||
-        petal.position.x > groundXRange ||
-        petal.position.z < -groundZRange ||
-        petal.position.z > groundZRange
-      ) {
-        // 범위를 벗어나면 즉시 리셋
-        if (bounds) {
-          const newInitialPos = new Vector3(
-            bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
-            bounds.max.y,
-            bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z),
-          );
-          petal.position.copy(newInitialPos);
-          this.initialPositions[index].copy(newInitialPos);
+        if (outOfX || outOfZ) {
+          if (bounds) {
+            p.position.set(
+              bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
+              bounds.max.y,
+              bounds.min.z - 2.0 + Math.random() * (bounds.max.z - bounds.min.z) // spawn at the back to drift forward
+            );
+            p.initialPos.copy(p.position);
+            p.isGrounded = false;
+            p.groundedTime = 0;
+            p.rotation.x = Math.random() * Math.PI;
+            p.rotation.y = Math.random() * Math.PI;
+            p.rotation.z = Math.random() * Math.PI;
+          }
+          continue; // skip rendering this petal on the ground in this frame
         }
-        return;
-      }
 
-      // 바닥 충돌 체크
-      if (bounds) {
-        if (petal.position.y <= bounds.min.y) {
-          // 바닥에 착지
-          petal.position.y = bounds.min.y + 0.01; // 바닥 위에 살짝 띄움
-          this.isGrounded[index] = true; // 착지 상태로 변경
-          this.groundedTime[index] = time; // 착지 시간 기록
-
-          // 착지 시 회전을 자연스럽게 고정
-          // 현재 회전 상태 유지
+        // Ground check
+        if (bounds && p.position.y <= bounds.min.y) {
+          p.position.y = bounds.min.y + 0.01;
+          p.isGrounded = true;
+          p.groundedTime = time;
+          p.rotation.x = 0;
+          p.rotation.z = 0;
         }
       }
-    });
+
+      // Update instanced transform matrix using reusable fields to avoid GC allocation
+      this._positionVec.copy(p.position);
+      this._rotationEuler.set(p.rotation.x, p.rotation.y, p.rotation.z);
+      this._rotationQuat.setFromEuler(this._rotationEuler);
+      this._scaleVec.setScalar(p.scale);
+      this._transformMatrix.compose(this._positionVec, this._rotationQuat, this._scaleVec);
+
+      this.instancedMesh!.setMatrixAt(idx, this._transformMatrix);
+    }
+
+    this.instancedMesh.instanceMatrix.needsUpdate = true;
   }
 }

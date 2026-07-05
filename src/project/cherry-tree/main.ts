@@ -65,7 +65,7 @@ export async function main() {
   try {
     const petalData = await modelManager.loadPetals({
       modelUrl: '/project-cherry-tree/assets/blossom/petal1.glb',
-      count: 200,
+      count: 2000,
       centerPosition: petalCenter,
       spreadRange: petalSpread,
       scale: 0.1,
@@ -100,7 +100,7 @@ export async function main() {
         ),
         max: new Vector3(
           petalCenter.x + petalSpread.x,
-          petalCenter.y + petalSpread.y + 2, // 위쪽을 더 높게
+          petalCenter.y + petalSpread.y + 0.5, // 위쪽을 더 높게
           petalCenter.z + petalSpread.z,
         ),
       });
