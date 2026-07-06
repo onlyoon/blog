@@ -51,7 +51,8 @@ export async function main() {
 
   // 벚꽃 나무 추가
   try {
-    await modelManager.loadTree();
+    const tree = await modelManager.loadTree();
+    tree.position.set(0, 0, 0);
     console.log('✓ 벚꽃 나무가 씬에 추가되었습니다.');
   } catch (error) {
     console.error('모델 로드 실패:', error);
@@ -60,7 +61,7 @@ export async function main() {
   // 꽃잎 추가
   let petals: any[] = [];
   let petalSpeeds: any[] = [];
-  const petalCenter = new Vector3(0, 2, 0);
+  const petalCenter = new Vector3(-0.993, 2.612, 0);
   const petalSpread = { x: 2, y: 1, z: 2 };
   try {
     const petalData = await modelManager.loadPetals({

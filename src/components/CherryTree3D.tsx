@@ -218,7 +218,7 @@ export default function CherryTree3D() {
     const modelManager = createModelManager(scene);
     modelManagerRef.current = modelManager;
 
-    const petalCenter = new Vector3(0, 2, 0);
+    const petalCenter = new Vector3(-0.993, 2.612, 0);
     const petalSpread = { x: 2, y: 1, z: 2 };
 
     // 7. Boundaries & Resize Handler
@@ -395,6 +395,7 @@ export default function CherryTree3D() {
       try {
         // 1. 벚꽃 나무 비동기 로드 (이제 텍스처 로딩까지 완전히 완료될 때까지 await합니다)
         const tree = await modelManager.loadTree();
+        tree.position.set(0, 0, 0);
         tree.scale.set(0.97, 0.97, 0.97);
 
         // 나무 머티리얼 초기 투명화 설정
