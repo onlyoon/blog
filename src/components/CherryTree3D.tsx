@@ -108,6 +108,10 @@ void main() {
 `;
 
 export default function CherryTree3D() {
+  const [showHint, setShowHint] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const hasSwipedRef = useRef(false);
+
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -118,6 +122,7 @@ export default function CherryTree3D() {
   const modelManagerRef = useRef<any>(null);
   const petalsRef = useRef<any[]>([]);
   const petalSpeedsRef = useRef<any[]>([]);
+  const startFallingPetalsRef = useRef<boolean>(false);
 
   // Refs for Screen Petals (stretching on camera)
   const screenPetalsArrayRef = useRef<ScreenPetalState[]>([]);
@@ -135,9 +140,17 @@ export default function CherryTree3D() {
   const glassZ = -3.5; // Sticking plane in front of the camera (distance = 3.5 along local -Z)
   const screenPetalCount = 1000;
 
-  // Spawns screen petals at top-right only (random spawn radius widened 10x to create a loose cloud)
-  const getSpawnX = (lx: number, randX: number) => lx * 8.5 + randX * 20.0;
-  const getSpawnY = (ly: number, randY: number) => ly * 1.0 + randY * 10.0;
+  // Spawns screen petals at top-right off-screen only, dynamically calculated based on depth and aspect ratio
+  const getSpawnX = (lx: number, spawnZ: number, randX: number) => {
+    const depthRatio = spawnZ / -3.5; // glassZ is -3.5
+    const visibleRightAtZ = lx * depthRatio;
+    return visibleRightAtZ + 2.0 + (randX + 0.5) * 20.0;
+  };
+  const getSpawnY = (ly: number, spawnZ: number, randY: number) => {
+    const depthRatio = spawnZ / -3.5;
+    const visibleTopAtZ = ly * depthRatio;
+    return visibleTopAtZ * 0.4 + randY * 10.0;
+  };
 
   const handleReset = () => {
     requestResetRef.current = true;
@@ -147,6 +160,15 @@ export default function CherryTree3D() {
     if (!canvasContainerRef.current) return;
 
     const container = canvasContainerRef.current;
+    const touchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    setIsTouchDevice(touchDevice);
+
+    // 4초 후 조작하지 않았으면 가이드 배너 표시
+    const hintTimeout = setTimeout(() => {
+      if (!hasSwipedRef.current) {
+        setShowHint(true);
+      }
+    }, 4000);
 
     // 1. Initialize Scenes (scene for 3D world, overlayScene for screen-attached HUD)
     const scene = new Scene();
@@ -165,6 +187,7 @@ export default function CherryTree3D() {
     const canvas = document.createElement('canvas');
     canvas.style.width = '100%';
     canvas.style.height = '100%';
+    canvas.style.touchAction = 'none'; // prevent default scrolling gestures
     container.appendChild(canvas);
     const renderer = createRenderer(canvas);
     renderer.autoClear = false; // Disable automatic clearing to manually layer scenes
@@ -178,6 +201,9 @@ export default function CherryTree3D() {
     controls.enableZoom = true;
     controls.enablePan = true;
     controls.enableRotate = true;
+    if (isTouchDevice) {
+      controls.enabled = false;
+    }
     controls.update();
     controlsRef.current = controls;
 
@@ -216,8 +242,9 @@ export default function CherryTree3D() {
     window.addEventListener('resize', handleResize);
     handleResize();
 
-    // 8. Mouse Listeners
-    const handleMouseMove = (e: MouseEvent) => {
+    // 8. Pointer Listeners
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
       const rect = canvas.getBoundingClientRect();
       const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const ny = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
@@ -225,31 +252,24 @@ export default function CherryTree3D() {
       mouseRef.current.y = ny * limitYRef.current;
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 0) return;
-      const t = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const nx = ((t.clientX - rect.left) / rect.width) * 2 - 1;
-      const ny = -(((t.clientY - rect.top) / rect.height) * 2 - 1);
-      mouseRef.current.x = nx * limitXRef.current;
-      mouseRef.current.y = ny * limitYRef.current;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      isMouseDownRef.current = true;
     };
-
-    const handleMouseDown = () => { isMouseDownRef.current = true; };
-    const handleMouseUp = () => { isMouseDownRef.current = false; };
-    const handleMouseLeave = () => {
+    const handlePointerUp = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      isMouseDownRef.current = false;
+    };
+    const handlePointerLeave = () => {
       mouseRef.current = { x: 999, y: 999 };
       isMouseDownRef.current = false;
     };
 
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-    canvas.addEventListener('touchmove', handleTouchMove);
-    canvas.addEventListener('touchstart', handleMouseDown);
-    canvas.addEventListener('touchend', handleMouseUp);
-    canvas.addEventListener('touchcancel', handleMouseLeave);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointerleave', handlePointerLeave);
+    canvas.addEventListener('pointercancel', handlePointerLeave);
 
     // 9. Load Screen Petals Geometry and Start
     let screenMeshLoaded = false;
@@ -266,7 +286,7 @@ export default function CherryTree3D() {
 
         if (!baseMesh) return;
 
-        const geometry = baseMesh.geometry.clone();
+        const geometry = (baseMesh as Mesh).geometry.clone();
         const material = new ShaderMaterial({
           uniforms: {
             u_time: { value: 0.0 },
@@ -302,8 +322,8 @@ export default function CherryTree3D() {
 
           // Spawn far in the background (local -Z)
           const spawnZ = -15 - Math.random() * 2;
-          const spawnX = getSpawnX(limitX, Math.random() - 0.5);
-          const spawnY = getSpawnY(limitY, Math.random() - 0.5);
+          const spawnX = getSpawnX(limitX, spawnZ, Math.random() - 0.5);
+          const spawnY = getSpawnY(limitY, spawnZ, Math.random() - 0.5);
           const spawnPos = new Vector3(spawnX, spawnY, spawnZ);
 
           const speedZ = 0.04 + Math.random() * 0.03;
@@ -352,8 +372,8 @@ export default function CherryTree3D() {
 
         const instancedMesh = new InstancedMesh(geometry, material, screenPetalCount);
         instancedMesh.instanceMatrix.setUsage(DynamicDrawUsage);
-        instancedMesh.castShadow = true;
-        instancedMesh.receiveShadow = true;
+        instancedMesh.castShadow = false;
+        instancedMesh.receiveShadow = false;
         instancedMesh.frustumCulled = false;
 
         // Add as child of camera so it moves/rotates seamlessly with camera controls!
@@ -373,18 +393,28 @@ export default function CherryTree3D() {
     // 10. Load Tree and Falling Petals (Deferred)
     const loadBackgroundScene = async () => {
       try {
-        // 벚꽃 나무 로드
+        // 1. 벚꽃 나무 비동기 로드 (이제 텍스처 로딩까지 완전히 완료될 때까지 await합니다)
         const tree = await modelManager.loadTree();
-        // Scale to 0.001 initially to animate it scaling up beautifully
-        tree.scale.set(0.001, 0.001, 0.001);
-        scene.add(tree);
-        gsap.to(tree.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: 'power2.out' });
-        console.log('✓ 벚꽃 나무 로드 완료 및 스케일 업 애니메이션 시작');
+        tree.scale.set(0.97, 0.97, 0.97);
 
-        // falling petals 로드 (1000 count)
+        // 나무 머티리얼 초기 투명화 설정
+        tree.traverse((child: any) => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach((mat: any) => {
+              mat.transparent = true;
+              mat.opacity = 0.0;
+              if (mat.uniforms && mat.uniforms.opacity) {
+                mat.uniforms.opacity.value = 0.0;
+              }
+            });
+          }
+        });
+
+        // 2. 떨어지는 벚꽃 잎 비동기 로드
         const petalData = await modelManager.loadPetals({
           modelUrl: '/project-cherry-tree/assets/blossom/petal1.glb',
-          count: 1000,
+          count: 500,
           centerPosition: petalCenter,
           spreadRange: petalSpread,
           scale: 0.1,
@@ -394,13 +424,82 @@ export default function CherryTree3D() {
         petalsRef.current = petalData.models;
         petalSpeedsRef.current = petalData.speeds;
 
-        if (petalData.models.length > 0) {
-          const fallingMesh = petalData.models[0] as InstancedMesh;
-          fallingMesh.scale.set(0.001, 0.001, 0.001);
-          gsap.to(fallingMesh.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: 'power2.out' });
+
+        const fallingMeshes: InstancedMesh[] = [];
+        petalData.models.forEach((model) => {
+          const fm = model as InstancedMesh;
+          fm.scale.set(1.0, 1.0, 1.0);
+          // Set invisible initially to prevent GPU rendering lag during tree entrance
+          fm.visible = false;
+          fallingMeshes.push(fm);
+        });
+
+        if (fallingMeshes.length > 0) {
+          const mat = fallingMeshes[0].material as ShaderMaterial;
+          if (mat) {
+            mat.transparent = true;
+            mat.opacity = 0.0;
+            if (mat.uniforms && mat.uniforms.opacity) {
+              mat.uniforms.opacity.value = 0.0;
+            }
+          }
         }
-        console.log('✓ 1000개의 벚꽃 잎 로드 완료 및 스케일 업 애니메이션 시작');
-      } catch (error) {
+
+        // 3. 씬에 나무 추가 (꽃잎 InstancedMesh는 loadPetals 내부에서 이미 scene에 추가됨)
+        scene.add(tree);
+
+        // 4. WebGL 사전 컴파일 (GPU에 셰이더 컴파일 및 텍스처 데이터 업로드 수행)
+        if (rendererRef.current) {
+          console.log('⚡ WebGL 사전 컴파일 시작 (렉 방지)...');
+          rendererRef.current.compile(scene, camera);
+          console.log('✓ WebGL 사전 컴파일 완료');
+        }
+
+        // 5. GSAP 등장 애니메이션 시작 (나무 스케일 업 + 페이드 인)
+        gsap.to(tree.scale, { x: 1, y: 1, z: 1, duration: 1.5, ease: 'power2.out' });
+        tree.traverse((child: any) => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach((mat: any) => {
+              gsap.to(mat, {
+                opacity: 1.0,
+                duration: 1.5,
+                ease: 'power2.out',
+                onUpdate: () => {
+                  if (mat.uniforms && mat.uniforms.opacity) {
+                    mat.uniforms.opacity.value = mat.opacity;
+                  }
+                }
+              });
+            });
+          }
+        });
+
+        // 6. 떨어지는 꽃잎 페이드 인 애니메이션 시작 (나무 등장 완료 시점인 1.2초 뒤로 시차 연출)
+        if (fallingMeshes.length > 0) {
+          setTimeout(() => {
+            startFallingPetalsRef.current = true;
+            fallingMeshes.forEach((mesh) => {
+              mesh.visible = true;
+            });
+            const mat = fallingMeshes[0].material as ShaderMaterial;
+            if (mat) {
+              gsap.to(mat, {
+                opacity: 1.0,
+                duration: 1.5,
+                ease: 'power2.out',
+                onUpdate: () => {
+                  if (mat.uniforms && mat.uniforms.opacity) {
+                    mat.uniforms.opacity.value = mat.opacity;
+                  }
+                }
+              });
+            }
+            console.log('✓ 벚꽃 꽃잎 페이드 인 애니메이션 시작 완료');
+          }, 1200);
+        }
+
+        console.log('✓ 벚꽃 나무 등장 애니메이션 시작 완료 (꽃잎 대기 중...)');} catch (error) {
         console.error('배경 모델 로드 실패:', error);
       }
     };
@@ -429,7 +528,7 @@ export default function CherryTree3D() {
         modelManagerRef.current.updateTreeWind(elapsedTime);
 
         // Update falling petals
-        if (petalsRef.current.length > 0) {
+        if (startFallingPetalsRef.current && petalsRef.current.length > 0) {
           modelManagerRef.current.updatePetals(
             petalsRef.current,
             petalSpeedsRef.current,
@@ -491,8 +590,8 @@ export default function CherryTree3D() {
             p.targetY = finalGridY;
 
             const spawnZ = -15 - Math.random() * 2;
-            const spawnX = getSpawnX(limitX, Math.random() - 0.5);
-            const spawnY = getSpawnY(limitY, Math.random() - 0.5);
+            const spawnX = getSpawnX(limitX, spawnZ, Math.random() - 0.5);
+            const spawnY = getSpawnY(limitY, spawnZ, Math.random() - 0.5);
 
             p.position.set(spawnX, spawnY, spawnZ);
             p.initialPos.set(spawnX, spawnY, spawnZ);
@@ -591,6 +690,11 @@ export default function CherryTree3D() {
                   stuckInfoArray[idx * 2 + 1] = 0.0;
                   attributeChanged = true;
                 }
+
+                if (!hasSwipedRef.current) {
+                  hasSwipedRef.current = true;
+                  setShowHint(false);
+                }
               }
             }
           } else {
@@ -682,18 +786,16 @@ export default function CherryTree3D() {
 
     // 12. Cleanup
     return () => {
+      clearTimeout(hintTimeout);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       window.removeEventListener('resize', handleResize);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchstart', handleMouseDown);
-      canvas.removeEventListener('touchend', handleMouseUp);
-      canvas.removeEventListener('touchcancel', handleMouseLeave);
+      canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointerleave', handlePointerLeave);
+      canvas.removeEventListener('pointercancel', handlePointerLeave);
 
       if (controlsRef.current) {
         controlsRef.current.dispose();
@@ -712,11 +814,78 @@ export default function CherryTree3D() {
       ref={containerRef}
       style={{
         width: '100%',
-        height: '600px',
+        height: '100%',
         position: 'relative',
       }}
     >
       <div ref={canvasContainerRef} style={{ width: '100%', height: '100%' }} />
+      {/* Interaction Guide Banner (Large Shortened Glassmorphic SVG Swipe Track - 120° Arc) */}
+      {showHint && (
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
+            @keyframes movePointer {
+              0%, 100% {
+                offset-distance: 0%;
+              }
+              50% {
+                offset-distance: 100%;
+              }
+            }
+            .swipe-pointer {
+              offset-path: path('M 46,90 A 120,120 0 0,1 254,90');
+              animation: movePointer 2.4s ease-in-out infinite;
+            }
+            .font-calligraphy {
+              font-family: 'Dancing Script', cursive;
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeLegibility;
+            }
+          `}</style>
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none transition-all duration-700 flex flex-col items-center gap-1.5">
+            <span className="text-white text-6xl font-calligraphy select-none opacity-65 leading-none">
+              Swipe
+            </span>
+            <svg viewBox="0 0 300 120" className="w-80 h-32 select-none pointer-events-none filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]">
+              {/* Glass Slot Outer Bevel (Frosted Glass Border) */}
+              <path
+                d="M 46,90 A 120,120 0 0,1 254,90"
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="40"
+                strokeLinecap="round"
+                className="dark:stroke-white/15 stroke-white/35"
+              />
+              {/* Glass Slot Inner Bevel Highlights */}
+              <path
+                d="M 46,90 A 120,120 0 0,1 254,90"
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth="34"
+                strokeLinecap="round"
+                className="dark:stroke-white/5 stroke-slate-400/10"
+              />
+              {/* Glass Slot Recessed Inner Groove (Shadow Channel) */}
+              <path
+                d="M 46,90 A 120,120 0 0,1 254,90"
+                fill="none"
+                stroke="rgba(0, 0, 0, 0.08)"
+                strokeWidth="28"
+                strokeLinecap="round"
+                className="dark:stroke-black/25 stroke-slate-500/10"
+              />
+
+              {/* Solid White sliding circle (fits inside the 28px groove) */}
+              <circle
+                r="11.0"
+                fill="#ffffff"
+                className="swipe-pointer filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+              />
+            </svg>
+          </div>
+        </>
+      )}
       {/* Refill Button Overlay */}
       <button
         onClick={handleReset}

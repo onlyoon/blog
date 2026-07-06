@@ -1,7 +1,6 @@
 ---
 import '../../styles/global.css';
 import Layout from '../../layouts/Layout.astro';
-import MaxWidthWrapper from '../../components/MaxWidthWrapper.astro';
 import Navigation from '../../components/Navigation.astro';
 import CherryTree3D from '../../components/CherryTree3D';
 import { getMenu } from '../../utils/get/menu';
@@ -11,44 +10,21 @@ const currentLocale: Locale = 'kr';
 const menuItems = getMenu(currentLocale);
 ---
 
-<Layout>
-  <Navigation menuItems={menuItems} currentLocale={currentLocale} />
-  <MaxWidthWrapper>
-    <div class="py-12">
-      <!-- 헤더 섹션 -->
-      <div class="mb-8">
-        <h1 class="text-4xl font-bold text-custom-text mb-4">
-          Cherry blossom
-        </h1>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
-          Interactive 3D Cherry blossom simulation created with Three.js.
-          featuring Ghibli-style assets rendered with custom GLSL shaders.
-        </p>
-        <div class="flex flex-wrap gap-2 mb-6">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700"
-          >
-            Three.js
-          </span>
-          <span
-            class="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700"
-          >
-            TypeScript
-          </span>
-          <span
-            class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700"
-          >
-            GLSL Shaders
-          </span>
-        </div>
-      </div>
+<Layout title="Cherry Blossom 3D">
+  <!-- Preload and pre-render calligraphy font to prevent layout shifts (FOUT) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet" />
 
-      <!-- 3D 뷰어 -->
-      <div class="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <CherryTree3D client:load />
-      </div>
+  <div class="relative w-screen h-screen overflow-hidden bg-white dark:bg-slate-950">
+    <!-- 네비게이션 (3D 씬 위에 얹음) -->
+    <div class="absolute inset-x-0 top-0 z-50">
+      <Navigation menuItems={menuItems} currentLocale={currentLocale} />
     </div>
-  </MaxWidthWrapper>
+
+    <!-- 3D 벚꽃 나무 (전체 화면) -->
+    <div class="absolute inset-0 z-0 w-full h-full">
+      <CherryTree3D client:load />
+    </div>
+  </div>
 </Layout>
-
-

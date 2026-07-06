@@ -14,8 +14,8 @@ export function setupLights(scene: Scene): void {
   const directionalLight = new DirectionalLight(0xffffff, 0.8);
   directionalLight.position.set(5, 10, 5);
   directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.mapSize.width = 256;
+  directionalLight.shadow.mapSize.height = 256;
   scene.add(directionalLight);
 
   console.log('✓ 조명이 씬에 추가되었습니다.');

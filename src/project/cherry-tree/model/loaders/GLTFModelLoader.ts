@@ -9,7 +9,7 @@ export interface ModelConfig {
   scale?: number;
   rotation?: { x: number; y: number; z: number };
   animations?: string[];
-  onSetup?: (modelScene: Object3D) => void;
+  onSetup?: (modelScene: Object3D) => void | Promise<void>;
 }
 
 export class GLTFModelLoader {
@@ -31,7 +31,7 @@ export class GLTFModelLoader {
     return new Promise((resolve, reject) => {
       this.loader.load(
         config.url,
-        (gltf: GLTF) => {
+        async (gltf: GLTF) => {
           const modelScene = gltf.scene;
           modelScene.name = config.name;
 
@@ -51,7 +51,10 @@ export class GLTFModelLoader {
 
           // 커스텀 설정 콜백
           if (config.onSetup) {
-            config.onSetup(modelScene);
+            const setupResult = config.onSetup(modelScene);
+            if (setupResult instanceof Promise) {
+              await setupResult;
+            }
           }
 
           // 씬에 추가

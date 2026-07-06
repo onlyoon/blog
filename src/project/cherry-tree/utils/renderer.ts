@@ -1,4 +1,4 @@
-import { WebGLRenderer, ReinhardToneMapping } from 'three';
+import { WebGLRenderer, ReinhardToneMapping, PCFSoftShadowMap } from 'three';
 
 function createRenderer(canvas: HTMLCanvasElement) {
   const renderer = new WebGLRenderer({ antialias: true, canvas });
@@ -6,6 +6,7 @@ function createRenderer(canvas: HTMLCanvasElement) {
   renderer.toneMapping = ReinhardToneMapping;
   renderer.toneMappingExposure = 3;
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = PCFSoftShadowMap; // Softer painterly shadows & highly optimized
   return renderer;
 }
 

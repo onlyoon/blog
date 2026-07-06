@@ -59,7 +59,8 @@ export class PetalLoader {
   private scene: Scene;
   private loader: GLTFLoader;
   private petalsArray: PetalState[] = [];
-  private instancedMesh: InstancedMesh | null = null;
+  private instancedMesh1: InstancedMesh | null = null;
+  private instancedMesh2: InstancedMesh | null = null;
   private material: ShaderMaterial | null = null;
 
   // Reusable math objects to eliminate garbage collection (GC) pressure in the animation loop
@@ -100,7 +101,7 @@ export class PetalLoader {
             return;
           }
 
-          const geometry = baseMesh.geometry.clone();
+          const geometry = (baseMesh as Mesh).geometry.clone();
           const randomValues = new Float32Array(count);
           this.petalsArray = [];
 
@@ -145,21 +146,33 @@ export class PetalLoader {
             uniforms: {
               u_time: { value: 0.0 },
               u_windStrength: { value: 3.0 }, // sway/turbulence is 3.0
+              opacity: { value: 0.0 },
             },
             vertexShader: instancedPetalVertexShader,
             fragmentShader: petalFragmentShader,
+            transparent: true,
           });
 
-          this.instancedMesh = new InstancedMesh(geometry, this.material, count);
-          this.instancedMesh.instanceMatrix.setUsage(DynamicDrawUsage);
-          this.instancedMesh.castShadow = true;
-          this.instancedMesh.receiveShadow = true;
-          this.instancedMesh.frustumCulled = false;
+          const shadowCount = Math.min(100, count);
+          const restCount = count - shadowCount;
 
-          this.scene.add(this.instancedMesh);
+          this.instancedMesh1 = new InstancedMesh(geometry, this.material, shadowCount);
+          this.instancedMesh1.instanceMatrix.setUsage(DynamicDrawUsage);
+          this.instancedMesh1.castShadow = true;
+          this.instancedMesh1.receiveShadow = true;
+          this.instancedMesh1.frustumCulled = false;
 
-          // Return the InstancedMesh wrapped in an array to avoid breaking method signature
-          resolve({ models: [this.instancedMesh], speeds: [] });
+          this.instancedMesh2 = new InstancedMesh(geometry, this.material, restCount);
+          this.instancedMesh2.instanceMatrix.setUsage(DynamicDrawUsage);
+          this.instancedMesh2.castShadow = false;
+          this.instancedMesh2.receiveShadow = false;
+          this.instancedMesh2.frustumCulled = false;
+
+          this.scene.add(this.instancedMesh1);
+          this.scene.add(this.instancedMesh2);
+
+          // Return both InstancedMeshes so CherryTree3D can manage visibility/animations on both
+          resolve({ models: [this.instancedMesh1, this.instancedMesh2], speeds: [] });
         },
         undefined,
         reject
@@ -173,7 +186,7 @@ export class PetalLoader {
     time: number,
     bounds?: { min: Vector3; max: Vector3 }
   ): void {
-    if (!this.instancedMesh || this.petalsArray.length === 0) return;
+    if (!this.instancedMesh1 || !this.instancedMesh2 || this.petalsArray.length === 0) return;
 
     if (this.material) {
       this.material.uniforms.u_time.value = time;
@@ -183,6 +196,8 @@ export class PetalLoader {
     const sway = 3.0;    // sway/turbulence is 3.0
 
     const len = this.petalsArray.length;
+    const shadowCount = Math.min(100, len);
+
     for (let idx = 0; idx < len; idx++) {
       const p = this.petalsArray[idx];
 
@@ -255,9 +270,14 @@ export class PetalLoader {
       this._scaleVec.setScalar(p.scale);
       this._transformMatrix.compose(this._positionVec, this._rotationQuat, this._scaleVec);
 
-      this.instancedMesh!.setMatrixAt(idx, this._transformMatrix);
+      if (idx < shadowCount) {
+        this.instancedMesh1.setMatrixAt(idx, this._transformMatrix);
+      } else {
+        this.instancedMesh2.setMatrixAt(idx - shadowCount, this._transformMatrix);
+      }
     }
 
-    this.instancedMesh.instanceMatrix.needsUpdate = true;
+    this.instancedMesh1.instanceMatrix.needsUpdate = true;
+    this.instancedMesh2.instanceMatrix.needsUpdate = true;
   }
 }

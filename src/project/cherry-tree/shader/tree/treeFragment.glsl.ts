@@ -4,6 +4,7 @@ uniform vec3 u_lightPosition;
 uniform vec3 u_lightColor;
 uniform float u_ambientStrength;
 uniform float u_blurAmount;
+uniform float opacity;
 
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -78,7 +79,7 @@ void main() {
   float glow = 1.0 + (u_blurAmount * 0.4);
   result *= glow;
 
-  gl_FragColor = vec4(result, texColor.a * 0.95);
+  gl_FragColor = vec4(result, texColor.a * 0.95 * opacity);
 }
 `;
 

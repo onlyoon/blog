@@ -17,17 +17,17 @@ export class TreeLoader {
       url: '/project-cherry-tree/assets/tree/newtree.glb',
       position: { x: position.x, y: position.y, z: position.z },
       scale,
-      onSetup: modelScene => {
-        this.setupTreeShader(modelScene);
+      onSetup: async modelScene => {
+        await this.setupTreeShader(modelScene);
       },
     };
 
     return this.gltfLoader.load(config);
   }
 
-  private setupTreeShader(modelScene: Object3D): void {
+  private async setupTreeShader(modelScene: Object3D): Promise<void> {
     // 트리 셰이더 설정 적용 및 foliageMesh 저장
-    this.foliageMesh = treeShaderSetup(modelScene as Object3D, null as unknown as Mesh);
+    this.foliageMesh = await treeShaderSetup(modelScene as Object3D, null as unknown as Mesh);
   }
 
   updateWind(time: number): void {
