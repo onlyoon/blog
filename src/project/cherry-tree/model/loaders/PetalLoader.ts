@@ -197,9 +197,12 @@ export class PetalLoader {
 
     const len = this.petalsArray.length;
     const shadowCount = Math.min(100, len);
+    let mesh1Changed = false;
+    let mesh2Changed = false;
 
     for (let idx = 0; idx < len; idx++) {
-      const p = this.petalsArray[idx];
+      const p = this.petalsArray[idx] as any;
+      let needsUpdate = p.needsMatrixUpdate !== false;
 
       if (p.isGrounded) {
         if (time - p.groundedTime >= 2.0) {
@@ -212,15 +215,16 @@ export class PetalLoader {
             p.initialPos.copy(p.position);
             p.isGrounded = false;
             p.groundedTime = 0;
+            needsUpdate = true;
           }
         }
       } else {
         // Falling physics matching gravity
         p.position.y += p.speed.y * gravity;
-        
+
         // Gentle Z wind direction (+Z towards camera, but subtle to prevent flying up illusion)
         p.position.z += 0.015;
-        
+
         // Sway based on sway/turbulence
         p.position.x += Math.sin(time * 0.5 * sway + p.randomValue * 10.0) * p.speed.x * sway * 0.5;
         p.position.z += Math.cos(time * 0.3 * sway + p.randomValue * 5.0) * p.speed.z * sway * 0.5;
@@ -250,34 +254,45 @@ export class PetalLoader {
             p.rotation.y = Math.random() * Math.PI;
             p.rotation.z = Math.random() * Math.PI;
           }
-          continue; // skip rendering this petal on the ground in this frame
-        }
-
-        // Ground check
-        if (bounds && p.position.y <= bounds.min.y) {
+          needsUpdate = true;
+        } else if (bounds && p.position.y <= bounds.min.y) {
+          // Ground check
           p.position.y = bounds.min.y + 0.01;
           p.isGrounded = true;
           p.groundedTime = time;
           p.rotation.x = 0;
           p.rotation.z = 0;
+          needsUpdate = true;
+        } else {
+          needsUpdate = true;
         }
       }
 
-      // Update instanced transform matrix using reusable fields to avoid GC allocation
-      this._positionVec.copy(p.position);
-      this._rotationEuler.set(p.rotation.x, p.rotation.y, p.rotation.z);
-      this._rotationQuat.setFromEuler(this._rotationEuler);
-      this._scaleVec.setScalar(p.scale);
-      this._transformMatrix.compose(this._positionVec, this._rotationQuat, this._scaleVec);
+      if (needsUpdate) {
+        // Update instanced transform matrix using reusable fields to avoid GC allocation
+        this._positionVec.copy(p.position);
+        this._rotationEuler.set(p.rotation.x, p.rotation.y, p.rotation.z);
+        this._rotationQuat.setFromEuler(this._rotationEuler);
+        this._scaleVec.setScalar(p.scale);
+        this._transformMatrix.compose(this._positionVec, this._rotationQuat, this._scaleVec);
 
-      if (idx < shadowCount) {
-        this.instancedMesh1.setMatrixAt(idx, this._transformMatrix);
-      } else {
-        this.instancedMesh2.setMatrixAt(idx - shadowCount, this._transformMatrix);
+        if (idx < shadowCount) {
+          this.instancedMesh1.setMatrixAt(idx, this._transformMatrix);
+          mesh1Changed = true;
+        } else {
+          this.instancedMesh2.setMatrixAt(idx - shadowCount, this._transformMatrix);
+          mesh2Changed = true;
+        }
+
+        if (p.isGrounded) {
+          p.needsMatrixUpdate = false;
+        } else {
+          p.needsMatrixUpdate = true;
+        }
       }
     }
 
-    this.instancedMesh1.instanceMatrix.needsUpdate = true;
-    this.instancedMesh2.instanceMatrix.needsUpdate = true;
+    if (mesh1Changed) this.instancedMesh1.instanceMatrix.needsUpdate = true;
+    if (mesh2Changed) this.instancedMesh2.instanceMatrix.needsUpdate = true;
   }
 }

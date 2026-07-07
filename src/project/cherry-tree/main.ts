@@ -24,9 +24,7 @@ export async function main() {
   const renderer = createRenderer(canvas);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 3, 0); // 카메라가 바라볼 지점 설정
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.25;
+  controls.target.set(0, 2.612, 0); // 카메라가 바라볼 지점 설정 (벚꽃 나무 중심)
   controls.enableZoom = true;
   controls.enablePan = true;
   controls.enableRotate = true;
@@ -52,7 +50,7 @@ export async function main() {
   // 벚꽃 나무 추가
   try {
     const tree = await modelManager.loadTree();
-    tree.position.set(0, 0, 0);
+    tree.position.set(0.993, 0, 0); // Shift by +0.993 in X to center the foliage at X=0
     console.log('✓ 벚꽃 나무가 씬에 추가되었습니다.');
   } catch (error) {
     console.error('모델 로드 실패:', error);
@@ -61,8 +59,12 @@ export async function main() {
   // 꽃잎 추가
   let petals: any[] = [];
   let petalSpeeds: any[] = [];
-  const petalCenter = new Vector3(-0.993, 2.612, 0);
+  const petalCenter = new Vector3(0, 2.612, 0);
   const petalSpread = { x: 2, y: 1, z: 2 };
+  const fallingPetalBounds = {
+    min: new Vector3(petalCenter.x - petalSpread.x, 0, petalCenter.z - petalSpread.z),
+    max: new Vector3(petalCenter.x + petalSpread.x, petalCenter.y + petalSpread.y + 0.5, petalCenter.z + petalSpread.z),
+  };
   try {
     const petalData = await modelManager.loadPetals({
       modelUrl: '/project-cherry-tree/assets/blossom/petal1.glb',
@@ -91,20 +93,8 @@ export async function main() {
     // 바람 애니메이션 업데이트
     modelManager.updateTreeWind(elapsedTime);
 
-    // 꽃잎 애니메이션 업데이트
     if (petals.length > 0) {
-      modelManager.updatePetals(petals, petalSpeeds, elapsedTime, {
-        min: new Vector3(
-          petalCenter.x - petalSpread.x,
-          0, // 바닥
-          petalCenter.z - petalSpread.z,
-        ),
-        max: new Vector3(
-          petalCenter.x + petalSpread.x,
-          petalCenter.y + petalSpread.y + 0.5, // 위쪽을 더 높게
-          petalCenter.z + petalSpread.z,
-        ),
-      });
+      modelManager.updatePetals(petals, petalSpeeds, elapsedTime, fallingPetalBounds);
     }
 
     renderer.render(scene, camera);

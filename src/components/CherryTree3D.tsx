@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Scene, Clock, Color, Vector3, Mesh, ShaderMaterial, InstancedMesh, DynamicDrawUsage, InstancedBufferAttribute, Matrix4, Quaternion, Euler } from 'three';
+import { Scene, Clock, Color, Vector3, Mesh, ShaderMaterial, InstancedMesh, DynamicDrawUsage, InstancedBufferAttribute, Matrix4, Quaternion, Euler, TOUCH } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createPerspectiveCamera } from '../project/cherry-tree/utils/camera';
@@ -195,14 +195,14 @@ export default function CherryTree3D() {
 
     // 4. Initialize OrbitControls pointing at default target
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 3, 0); // Default target (tree center)
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
+    controls.target.set(0, 2.612, 0); // Target the visual center of the canopy (aligned to center)
     controls.enableZoom = true;
     controls.enablePan = true;
     controls.enableRotate = true;
     if (isTouchDevice) {
-      controls.enabled = false;
+      // Disable single-finger touch rotation to avoid interference with the swipe gesture for blowing screen petals,
+      // but still allow mouse controls for desktop users with touchscreens, and multi-touch zoom/pan.
+      controls.touches.ONE = TOUCH.NONE;
     }
     controls.update();
     controlsRef.current = controls;
@@ -218,8 +218,12 @@ export default function CherryTree3D() {
     const modelManager = createModelManager(scene);
     modelManagerRef.current = modelManager;
 
-    const petalCenter = new Vector3(-0.993, 2.612, 0);
+    const petalCenter = new Vector3(0, 2.612, 0);
     const petalSpread = { x: 2, y: 1, z: 2 };
+    const fallingPetalBounds = {
+      min: new Vector3(petalCenter.x - petalSpread.x, 0, petalCenter.z - petalSpread.z),
+      max: new Vector3(petalCenter.x + petalSpread.x, petalCenter.y + petalSpread.y + 0.5, petalCenter.z + petalSpread.z),
+    };
 
     // 7. Boundaries & Resize Handler
     let limitY = 2.4;
@@ -395,7 +399,7 @@ export default function CherryTree3D() {
       try {
         // 1. 벚꽃 나무 비동기 로드 (이제 텍스처 로딩까지 완전히 완료될 때까지 await합니다)
         const tree = await modelManager.loadTree();
-        tree.position.set(0, 0, 0);
+        tree.position.set(0.993, 0, 0); // Shift by +0.993 in X to center the foliage at X=0
         tree.scale.set(0.97, 0.97, 0.97);
 
         // 나무 머티리얼 초기 투명화 설정
@@ -500,7 +504,8 @@ export default function CherryTree3D() {
           }, 1200);
         }
 
-        console.log('✓ 벚꽃 나무 등장 애니메이션 시작 완료 (꽃잎 대기 중...)');} catch (error) {
+        console.log('✓ 벚꽃 나무 등장 애니메이션 시작 완료 (꽃잎 대기 중...)');
+      } catch (error) {
         console.error('배경 모델 로드 실패:', error);
       }
     };
@@ -534,10 +539,7 @@ export default function CherryTree3D() {
             petalsRef.current,
             petalSpeedsRef.current,
             elapsedTime,
-            {
-              min: new Vector3(petalCenter.x - petalSpread.x, 0, petalCenter.z - petalSpread.z),
-              max: new Vector3(petalCenter.x + petalSpread.x, petalCenter.y + petalSpread.y + 0.5, petalCenter.z + petalSpread.z),
-            }
+            fallingPetalBounds
           );
         }
       }
@@ -825,17 +827,24 @@ export default function CherryTree3D() {
         <>
           <style>{`
             @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
-            @keyframes movePointer {
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes rotatePointer {
               0%, 100% {
-                offset-distance: 0%;
+                transform: rotate(-60deg);
               }
               50% {
-                offset-distance: 100%;
+                transform: rotate(60deg);
               }
             }
-            .swipe-pointer {
-              offset-path: path('M 46,90 A 120,120 0 0,1 254,90');
-              animation: movePointer 2.4s ease-in-out infinite;
+            .fade-in-banner {
+              animation: fadeIn 0.8s ease-out forwards;
+            }
+            .swipe-pointer-group {
+              transform-origin: 150px 150px;
+              animation: rotatePointer 2.4s ease-in-out infinite;
             }
             .font-calligraphy {
               font-family: 'Dancing Script', cursive;
@@ -844,7 +853,7 @@ export default function CherryTree3D() {
               text-rendering: optimizeLegibility;
             }
           `}</style>
-          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none transition-all duration-700 flex flex-col items-center gap-1.5">
+          <div className="fade-in-banner absolute bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center gap-1.5">
             <span className="text-white text-6xl font-calligraphy select-none opacity-65 leading-none">
               Swipe
             </span>
@@ -877,12 +886,15 @@ export default function CherryTree3D() {
                 className="dark:stroke-black/25 stroke-slate-500/10"
               />
 
-              {/* Solid White sliding circle (fits inside the 28px groove) */}
-              <circle
-                r="11.0"
-                fill="#ffffff"
-                className="swipe-pointer filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
-              />
+              <g className="swipe-pointer-group">
+                <circle
+                  cx="150"
+                  cy="30"
+                  r="11.0"
+                  fill="#ffffff"
+                  className="filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+                />
+              </g>
             </svg>
           </div>
         </>
