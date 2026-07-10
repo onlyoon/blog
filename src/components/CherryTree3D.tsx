@@ -6,6 +6,7 @@ import { createPerspectiveCamera } from '../project/cherry-tree/utils/camera';
 import createRenderer from '../project/cherry-tree/utils/renderer';
 import { setupLights } from '../project/cherry-tree/utils/light';
 import { setupGround } from '../project/cherry-tree/utils/ground';
+import { setupGrass } from '../project/cherry-tree/utils/grass';
 import { createModelManager } from '../project/cherry-tree/model';
 import gsap from 'gsap';
 
@@ -132,6 +133,8 @@ export default function CherryTree3D() {
   const screenStuckInfoAttributeRef = useRef<InstancedBufferAttribute | null>(null);
   const requestResetRef = useRef<boolean>(false);
 
+  const grassMeshRef = useRef<InstancedMesh | null>(null);
+
   const mouseRef = useRef<{ x: number; y: number }>({ x: 999, y: 999 });
   const isMouseDownRef = useRef<boolean>(false);
   const limitXRef = useRef<number>(2.4);
@@ -207,9 +210,23 @@ export default function CherryTree3D() {
     controls.update();
     controlsRef.current = controls;
 
-    // 5. Setup Ground and Lights
-    setupGround(scene);
+    // 5. Lights
     setupLights(scene);
+
+    // 땅 + 잔디를 같은 idle callback에서 동시에 씬에 추가 → 순차 표출 방지
+    const scheduleGrassInit = (cb: () => void) =>
+      typeof requestIdleCallback !== 'undefined'
+        ? requestIdleCallback(cb, { timeout: 500 })
+        : setTimeout(cb, 0);
+
+    scheduleGrassInit(() => {
+      setupGround(scene);
+      grassMeshRef.current = setupGrass(scene);
+      // 잔디 셰이더를 첫 렌더 전에 미리 GPU 컴파일 — 첫 프레임 스파이크 제거
+      requestAnimationFrame(() => {
+        if (rendererRef.current) rendererRef.current.compile(scene, camera);
+      });
+    });
 
     const clock = new Clock();
     clockRef.current = clock;
@@ -532,6 +549,12 @@ export default function CherryTree3D() {
       if (modelManagerRef.current) {
         modelManagerRef.current.updateAnimations(deltaTime);
         modelManagerRef.current.updateTreeWind(elapsedTime);
+
+        // Update grass wind
+        const gm = grassMeshRef.current;
+        if (gm && gm.userData.uniforms) {
+          gm.userData.uniforms.uTime.value = elapsedTime;
+        }
 
         // Update falling petals
         if (startFallingPetalsRef.current && petalsRef.current.length > 0) {

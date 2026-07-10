@@ -4,6 +4,7 @@ import { createPerspectiveCamera } from './utils/camera';
 import createRenderer from './utils/renderer';
 import { setupLights } from './utils/light';
 import { setupGround } from './utils/ground';
+import { setupGrass } from './utils/grass';
 // import addSky from './utils/sky';
 import { createModelManager } from './model';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -33,6 +34,7 @@ export async function main() {
   // addSky(scene);
 
   setupGround(scene);
+  const grassMesh = setupGrass(scene);
 
   setupLights(scene);
 
@@ -92,6 +94,11 @@ export async function main() {
 
     // 바람 애니메이션 업데이트
     modelManager.updateTreeWind(elapsedTime);
+
+    // 잔디 바람 애니메이션 업데이트
+    if (grassMesh && grassMesh.userData && grassMesh.userData.uniforms) {
+      grassMesh.userData.uniforms.uTime.value = elapsedTime;
+    }
 
     if (petals.length > 0) {
       modelManager.updatePetals(petals, petalSpeeds, elapsedTime, fallingPetalBounds);

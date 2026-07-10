@@ -8,9 +8,9 @@ import { Scene, PlaneGeometry, MeshStandardMaterial, Mesh } from 'three';
 export function setupGround(scene: Scene): void {
   const groundGeometry = new PlaneGeometry(20, 20);
   const groundMaterial = new MeshStandardMaterial({
-    color: 0xf0f0f0,
-    roughness: 0.8,
-    metalness: 0.2,
+    color: 0x8a7157,  // 모래빛 황토색 (#8a7157)
+    roughness: 0.9,
+    metalness: 0.0,
   });
   const ground = new Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2; // 바닥이 수평이 되도록 회전
